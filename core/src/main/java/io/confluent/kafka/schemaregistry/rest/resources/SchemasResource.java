@@ -23,6 +23,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
 import io.confluent.kafka.schemaregistry.client.rest.Versions;
 import io.confluent.kafka.schemaregistry.client.rest.entities.SchemaString;
@@ -48,7 +49,32 @@ public class SchemasResource {
   public SchemasResource(KafkaSchemaRegistry schemaRegistry) {
     this.schemaRegistry = schemaRegistry;
   }
-
+  
+  @GET
+  @Path("/ids/plain/{id}")
+  @PerformanceMetric("schemas.ids.plain.get-schema")
+  @Produces({MediaType.TEXT_PLAIN})
+  public String getSchemaPlain(@PathParam("id") Integer id) {
+    String errorMessage = "Error while retrieving schema with id " + id + " from the schema "
+                          + "registry";
+    String schema = null;
+    try {
+      SchemaString schemaResult = schemaRegistry.get(id);
+      if (schemaResult != null) {
+      schema = schemaResult.getSchemaString();
+      }
+    } catch (SchemaRegistryStoreException e) {
+      log.debug(errorMessage, e);
+      throw Errors.storeException(errorMessage, e);
+    } catch (SchemaRegistryException e) {
+      throw Errors.schemaRegistryException(errorMessage, e);
+    }
+    if (schema == null) {
+      throw Errors.schemaNotFoundException();
+    }
+    return schema;
+  }
+  
   @GET
   @Path("/ids/{id}")
   @PerformanceMetric("schemas.ids.get-schema")
